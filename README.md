@@ -2,7 +2,7 @@
 
 A small personal budget app that runs in the browser. It tracks biweekly pay, spending, saving and investing each month, with a pastel ring chart and a year overview. It works offline and can be installed on a phone's home screen.
 
-Live app: https://clairevania.github.io/budget_V2/
+Live app: https://clairevania.github.io/budget/
 
 There is also a version that adds Instacart receipts automatically. It lives in the [`instacart`](instacart/) folder and has its own README.
 
