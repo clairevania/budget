@@ -181,9 +181,6 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
 
 .f textarea{width:100%;border-radius:12px;border:1px solid transparent;background:var(--field);padding:10px 12px;outline:none;font:inherit;font-weight:500;font-size:13.5px;resize:vertical;min-height:96px}
 .f textarea:focus{border-color:var(--focus)}
-.rcrow{display:grid;grid-template-columns:1fr 1.3fr;gap:10px}
-.rcfound{font-size:13px;color:var(--soft);margin:-4px 0 10px;min-height:18px}
-.rcfound b{color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,14px);background:var(--ink);color:var(--panel);padding:9px 15px;border-radius:12px;font-size:13.5px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:9}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -216,7 +213,6 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
       <button class="round" id="next" aria-label="Next month"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
     </div>
     <div style="display:flex;gap:8px">
-    <button class="round" id="openReceipt" aria-label="Add from a receipt" title="Add from a receipt"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></button>
     <button class="round" id="openSettings" aria-label="Settings"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
     </div>
   </header>
@@ -293,19 +289,6 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
   </form>
 </dialog>
 
-<dialog id="rcDlg">
-  <form method="dialog">
-    <div class="dh"><div><h3>Add from a receipt</h3><p>Copy your receipt email, then paste it here. The total is picked out for you.</p></div></div>
-    <div class="f"><textarea id="rcText" rows="5" placeholder="Paste the receipt here" aria-label="Receipt text"></textarea></div>
-    <div class="rcfound" id="rcFound"></div>
-    <div class="rcrow">
-      <div class="f"><label for="rcAmt">Amount</label><div class="money"><i>$</i><input id="rcAmt" inputmode="decimal" placeholder="0"></div></div>
-      <div class="f"><label for="rcCat">Category</label><select id="rcCat"></select></div>
-    </div>
-    <div class="f"><label for="rcNote">Note</label><input type="text" id="rcNote" placeholder="Instacart"></div>
-    <div class="acts"><div class="r"><button class="ghost" value="cancel">Cancel</button><button class="solid" value="add" id="rcAdd">Add</button></div></div>
-  </form>
-</dialog>
 
 <dialog id="resetDlg">
   <form method="dialog">
@@ -620,68 +603,6 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
     r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.months) throw 0; state=normalize(d); save(); renderAll(); toast("Backup restored"); }catch(err){ toast("That file is not a budget backup"); } e.target.value=""; };
     r.readAsText(f); });
 
-  /* ---------- receipts ---------- */
-  function findTotal(text){
-    const lines=String(text||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    const money=l=>{ const m=l.match(/\$\s?(\d[\d,]*\.\d{2})/g); return m?parseFloat(m[m.length-1].replace(/[$,\s]/g,"")):null; };
-    const strong=/(order total|grand total|total charged|amount charged|total paid|charged to|you paid)/i;
-    const weak=/\btotal\b/i, skip=/(sub\s*-?total|items? total|before tax|savings|you saved|estimated)/i;
-    let best=null, rank=0;
-    lines.forEach((l,i)=>{
-      const isStrong=strong.test(l), isWeak=weak.test(l)&&!skip.test(l);
-      if(!isStrong&&!isWeak) return;
-      let v=money(l); if(v==null&&lines[i+1]) v=money(lines[i+1]);
-      if(v==null) return;
-      const r=isStrong?2:1;
-      if(r>=rank){ rank=r; best=v; }
-    });
-    if(best==null){ const all=(String(text).match(/\$\s?\d[\d,]*\.\d{2}/g)||[]).map(x=>parseFloat(x.replace(/[$,\s]/g,""))); if(all.length) best=Math.max(...all); }
-    return best;
-  }
-  function guessStore(text){
-    const stores=["Instacart","Costco","Walmart","Kroger","Target","Aldi","Whole Foods","Trader Joe's","Sprouts","Amazon"];
-    const t=String(text||"").toLowerCase();
-    const hit=stores.filter(x=>t.includes(x.toLowerCase()));
-    if(hit.includes("Instacart")) { const other=hit.find(x=>x!=="Instacart"); return other?"Instacart "+other:"Instacart"; }
-    return hit[0]||"";
-  }
-  function readReceipt(){
-    const t=$("rcText").value, v=findTotal(t);
-    if(v!=null){ $("rcAmt").value=v; $("rcFound").innerHTML="Found a total of <b>"+usdx(v)+"</b>. Check it, then tap Add."; }
-    else $("rcFound").textContent=t.trim()?"No total found. Type the amount below.":"";
-    const st=guessStore(t); if(st && !$("rcNote").dataset.touched) $("rcNote").value=st;
-  }
-  function openReceipt(prefill){
-    const sel=$("rcCat"); sel.innerHTML="";
-    GROUPS.forEach(([g,label])=>{ const og=document.createElement("optgroup"); og.label=label;
-      state.categories.filter(c=>c.type===g).forEach(c=>{ const o=document.createElement("option"); o.value=c.id; o.textContent=c.name; og.appendChild(o); });
-      if(og.children.length) sel.appendChild(og); });
-    const groc=state.categories.find(c=>c.id==="groceries")||state.categories.find(c=>/grocer/i.test(c.name));
-    if(groc) sel.value=groc.id;
-    $("rcText").value=prefill||""; $("rcAmt").value=""; $("rcNote").value=""; delete $("rcNote").dataset.touched; $("rcFound").textContent="";
-    $("rcDlg").returnValue=""; $("rcDlg").showModal();
-    if(prefill) readReceipt();
-    else if(navigator.clipboard && navigator.clipboard.readText){
-      navigator.clipboard.readText().then(t=>{ if(t && /\$\s?\d/.test(t) && !$("rcText").value){ $("rcText").value=t; readReceipt(); } }).catch(()=>{});
-    }
-  }
-  $("openReceipt").onclick=()=>openReceipt();
-  $("rcText").addEventListener("input",readReceipt);
-  $("rcNote").addEventListener("input",()=>{ $("rcNote").dataset.touched="1"; });
-  $("rcDlg").addEventListener("close",()=>{
-    if($("rcDlg").returnValue!=="add") return;
-    const v=parse($("rcAmt").value); if(!v){ toast("No amount to add"); return; }
-    const c=state.categories.find(x=>x.id===$("rcCat").value); if(!c) return;
-    const n=$("rcNote").value.trim();
-    (month().entries[c.id] ||= []).push(n?{a:v,d:todayStr(),n}:{a:v,d:todayStr()});
-    save(); renderSummary(); toast("Added "+usdx(v)+" to "+c.name);
-  });
-  // text shared into the app from another app (Android share sheet)
-  try{
-    const q=new URLSearchParams(location.search);
-    const shared=[q.get("title"),q.get("text"),q.get("url")].filter(Boolean).join("\n");
-    if(shared){ history.replaceState(null,"",location.pathname); setTimeout(()=>openReceipt(shared),300); }
-  }catch(e){}
 
   const resetDlg=$("resetDlg");
   $("resetBtn").onclick=()=>{ $("resetMonth").textContent=MONTHS[cur.m]+" "+cur.y; resetDlg.returnValue=""; resetDlg.showModal(); };

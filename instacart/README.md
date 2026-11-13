@@ -2,7 +2,7 @@
 
 The same budget app as the main version, plus automatic Instacart totals. A small Google Apps Script reads Instacart receipt emails in your own Gmail, and the app adds each new order to Groceries every time it opens.
 
-Live app: https://clairevania.github.io/budget/instacart/
+Live app: https://clairevania.github.io/budget_V2/instacart/
 
 Everything in the [main README](../README.md) applies here too. This page only covers what is different.
 
