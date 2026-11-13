@@ -128,7 +128,7 @@ function parseAmazon_(lines) {
 
 /* ---------- helpers ---------- */
 
-const BIDI_ = /[‎‏‪-‮⁦-⁩]/g;
+const BIDI_ = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 /** The email as you see it in Gmail, turned into plain lines of text. */
 function htmlLines_(m) {
