@@ -4,7 +4,7 @@ A small personal budget app that runs in the browser. It tracks biweekly pay, sp
 
 Live app: https://clairevania.github.io/budget/
 
-There is also a version that adds Instacart receipts automatically. It lives in the [`instacart`](instacart/) folder and has its own README.
+There is also a version, **Budget+**, that adds Instacart and Amazon orders automatically from Gmail. It lives in the [`instacart`](instacart/) folder at https://clairevania.github.io/budget_V2/instacart/ and has its own README.
 
 ## Features
 
@@ -29,7 +29,7 @@ There is also a version that adds Instacart receipts automatically. It lives in 
 | `sw.js` | Service worker that keeps a copy of the app on the device so it works offline |
 | `icon-192.png`, `icon-512.png` | App icon for Android |
 | `apple-touch-icon.png` | App icon for iPhone |
-| `instacart/` | The Instacart version, with its own files and README |
+| `instacart/` | Budget+, the version that adds Instacart and Amazon orders from Gmail, with its own files and README |
 
 ## Hosting on GitHub Pages
 
