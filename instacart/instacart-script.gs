@@ -29,7 +29,7 @@ function test() {
   if (!threads.length) { Logger.log('No Instacart emails found in the last 60 days.'); return; }
   threads.forEach(t => t.getMessages().forEach(m => {
     const isReceipt = RECEIPT_SUBJECT.test(m.getSubject());
-    const total = isReceipt ? findTotal_(m.getPlainBody()) : null;
+    const total = isReceipt ? findTotal_(receiptLines_(m)) : null;
     Logger.log((isReceipt ? 'RECEIPT  ' : 'skipped  ') + fmtDate_(m.getDate()) + '  ' +
                (total != null ? '$' + total.toFixed(2) : '-') + '  ' + m.getSubject());
   }));
@@ -42,28 +42,43 @@ function findOrders_() {
   const out = [];
   GmailApp.search(SEARCH, 0, 100).forEach(t => t.getMessages().forEach(m => {
     if (!RECEIPT_SUBJECT.test(m.getSubject())) return;
-    const total = findTotal_(m.getPlainBody());
-    if (total == null) return;
+    const total = findTotal_(receiptLines_(m));
+    if (total == null || total <= 0) return;
     out.push({ id: m.getId(), date: fmtDate_(m.getDate()), total: total });
   }));
   cache.put('orders', JSON.stringify(out), 300);
   return out;
 }
 
-/** Finds the final total on a receipt, ignoring subtotals and savings lines. */
-function findTotal_(body) {
-  const lines = String(body).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  const money = /\$\s?([\d,]+\.\d{2})/;
-  let best = null;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!/\btotal\b/i.test(line)) continue;
-    if (/sub\s*-?\s*total|savings|saved|you save|items?\s+total|\best(imated|\.)?\b/i.test(line)) continue;
-    let m = line.match(money);
-    if (!m && i + 1 < lines.length) m = lines[i + 1].match(/^\$\s?([\d,]+\.\d{2})/);
-    if (m) best = parseFloat(m[1].replace(/,/g, ''));   // keep the last real "Total" on the receipt
-  }
-  return best;
+/** Turns the receipt as you see it in Gmail into plain lines of text. */
+function receiptLines_(m) {
+  const text = m.getBody()
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?>|<\/(p|div|tr|td|th|li|h\d|table)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#36;/g, '$').replace(/&#45;|&minus;/g, '-');
+  return text.split('\n').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+/**
+ * Finds what was actually charged. Uses the "Total charged" line,
+ * or the plain "Total" line if a receipt has no "Total charged".
+ */
+function findTotal_(lines) {
+  const money = s => {
+    const x = String(s || '').match(/(-?)\s*\$\s?(\d[\d,]*\.\d{2})/);
+    return x ? (x[1] ? -1 : 1) * parseFloat(x[2].replace(/,/g, '')) : null;
+  };
+  const valueAfter = label => {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!label.test(lines[i])) continue;
+      const v = money(lines[i]) != null ? money(lines[i]) : money(lines[i + 1]);
+      if (v != null) return v;
+    }
+    return null;
+  };
+  const charged = valueAfter(/^total charged\b/i);
+  return charged != null ? charged : valueAfter(/^total\b(?!\s*(charged|savings|saved))/i);
 }
 
 function fmtDate_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
