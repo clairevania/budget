@@ -282,8 +282,9 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
     <div class="f"><label for="setPay">Usual paycheck (take-home)</label><div class="money"><i>$</i><input id="setPay" inputmode="decimal" placeholder="0"></div></div>
     <div class="f"><label for="setPayday">Any one payday</label><input type="date" id="setPayday"><div class="hint">Used to tell which months get 3 paychecks.</div></div>
     <div class="f"><label for="setFx">Dollar to rupee rate</label><div class="money"><i>₹</i><input id="setFx" inputmode="decimal" placeholder="94.5"></div></div>
-    <div class="f"><label for="setIc">Instacart link (optional)</label><input type="text" id="setIc" placeholder="https://script.google.com/macros/s/.../exec?key=..." autocomplete="off" spellcheck="false"><div class="hint">Paste the link from your Instacart script. New receipts get added by themselves.</div></div>
+    <div class="f"><label for="setIc">Orders link for Instacart and Amazon (optional)</label><input type="text" id="setIc" placeholder="https://script.google.com/macros/s/.../exec?key=..." autocomplete="off" spellcheck="false"><div class="hint">Paste the link from your Google script. New orders get added by themselves.</div></div>
     <div class="f"><label for="setIcCat">Put Instacart orders in</label><select id="setIcCat"></select></div>
+    <div class="f"><label for="setAmzCat">Put Amazon orders in</label><select id="setAmzCat"></select></div>
     <div class="f"><label for="setTheme">Look</label><select id="setTheme"><option value="">Match my device</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
     <div class="acts"><div class="r"><button class="ghost" value="cancel">Cancel</button><button class="solid" value="save">Save</button></div></div>
   </form>
@@ -352,7 +353,7 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
   const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 
   function normalize(s){
-    s.settings=Object.assign({paycheck:0,payday:"",fx:94.5,theme:"",icUrl:"",icCat:"groceries",icSince:""},s.settings||{});
+    s.settings=Object.assign({paycheck:0,payday:"",fx:94.5,theme:"",icUrl:"",icCat:"groceries",amzCat:"household",icSince:""},s.settings||{});
     s.imported=s.imported||{};
     if(!Array.isArray(s.categories)||!s.categories.length) s.categories=defaultCats();
     s.months=s.months||{};
@@ -589,11 +590,12 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
 
   const setDlg=$("setDlg");
   $("openSettings").onclick=()=>{ $("setPay").value=fmtField(state.settings.paycheck); $("setPayday").value=state.settings.payday||""; $("setFx").value=state.settings.fx||""; $("setTheme").value=state.settings.theme||""; $("setIc").value=state.settings.icUrl||"";
-    $("setIcCat").innerHTML=state.categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(""); $("setIcCat").value=state.settings.icCat||"groceries"; setDlg.returnValue=""; setDlg.showModal(); };
+    $("setIcCat").innerHTML=state.categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join(""); $("setIcCat").value=state.settings.icCat||"groceries";
+    $("setAmzCat").innerHTML=$("setIcCat").innerHTML; $("setAmzCat").value=state.settings.amzCat||"household"; setDlg.returnValue=""; setDlg.showModal(); };
   setDlg.addEventListener("close",()=>{ if(setDlg.returnValue!=="save") return;
     state.settings.paycheck=parse($("setPay").value); state.settings.payday=$("setPayday").value; state.settings.fx=parse($("setFx").value)||0; state.settings.theme=$("setTheme").value;
     const ic=$("setIc").value.trim(); if(ic && ic!==state.settings.icUrl && !state.settings.icSince) state.settings.icSince=todayStr();
-    state.settings.icUrl=ic; state.settings.icCat=$("setIcCat").value||"groceries";
+    state.settings.icUrl=ic; state.settings.icCat=$("setIcCat").value||"groceries"; state.settings.amzCat=$("setAmzCat").value||"household";
     save(); renderAll(); toast("Settings saved"); if(ic) importInstacart(true); });
 
   $("exportBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}); const a=document.createElement("a");
@@ -619,23 +621,24 @@ dialog::backdrop{background:rgba(40,32,24,.32)}
     icBusy=true;
     try{
       const r=await fetch(url,{cache:"no-store"}); const d=await r.json();
-      if(d.error){ if(manual) toast("Instacart link says "+d.error); return; }
-      const cat=state.categories.find(c=>c.id===state.settings.icCat)||state.categories.find(c=>c.id==="groceries")||state.categories.find(c=>c.type==="spend");
-      if(!cat) return;
+      if(d.error){ if(manual) toast("Orders link says "+d.error); return; }
+      const pick=(id,fallback)=>state.categories.find(c=>c.id===id)||state.categories.find(c=>c.id===fallback)||state.categories.find(c=>c.type==="spend");
+      const SRC={instacart:{cat:pick(state.settings.icCat,"groceries"),note:"Instacart"}, amazon:{cat:pick(state.settings.amzCat,"household"),note:"Amazon"}};
       const since=state.settings.icSince||"0000"; let n=0,sum=0;
       (d.orders||[]).forEach(o=>{
         if(!o||!o.id||state.imported[o.id]) return;
         const t=+o.total; if(!(t>0)||!/^\d{4}-\d{2}-\d{2}$/.test(o.date||"")) return;
         state.imported[o.id]=1;
         if(o.date<since) return;
+        const from=SRC[o.src]||SRC.instacart; if(!from.cat) return;
         const k=o.date.slice(0,7); const md=state.months[k]||(state.months[k]={entries:{}}); md.entries=md.entries||{};
-        (md.entries[cat.id] ||= []).push({a:Math.round(t*100)/100,d:o.date,n:"Instacart",src:String(o.id)});
+        (md.entries[from.cat.id] ||= []).push({a:Math.round(t*100)/100,d:o.date,n:from.note,src:String(o.id)});
         n++; sum+=t;
       });
       save();
-      if(n){ renderAll(); toast("Added "+n+" Instacart order"+(n>1?"s":"")+", "+usdx(sum)); }
-      else if(manual) toast("Instacart connected. No new orders yet");
-    }catch(e){ if(manual) toast("Couldn't reach your Instacart link. Check it in settings"); }
+      if(n){ renderAll(); toast("Added "+n+" order"+(n>1?"s":"")+" from your email, "+usdx(sum)); }
+      else if(manual) toast("Orders link connected. No new orders yet");
+    }catch(e){ if(manual) toast("Couldn't reach your orders link. Check it in settings"); }
     finally{ icBusy=false; }
   }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") importInstacart(false); });
