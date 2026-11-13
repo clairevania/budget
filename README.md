@@ -2,7 +2,7 @@
 
 A small personal budget app that runs in the browser. It tracks biweekly pay, spending, saving and investing each month, with a pastel ring chart and a year overview. It works offline and can be installed on a phone's home screen.
 
-Live app: https://clairevania.github.io/budget/
+Live app: https://clairevania.github.io/budget_V2/
 
 There is also a version that adds Instacart receipts automatically. It lives in the [`instacart`](instacart/) folder and has its own README.
 
@@ -12,7 +12,6 @@ There is also a version that adds Instacart receipts automatically. It lives in 
 - **Three groups.** Spending, Saving and Investing are tracked separately. Each category has its own icon and color.
 - **Quick add.** Type an amount in a category's Add box, like `40` or `40 milk`, and it adds to that month's total. A negative amount like `-20 refund` takes money off.
 - **Entry history.** Tap a category name to see every entry for the month with its date and note. You can edit notes, delete entries, rename the category, or change its group, icon and color.
-- **Add from a receipt.** Tap the receipt icon and paste a receipt email. The app picks out the total for you to check and add. On Android you can share an email straight into the app.
 - **Month summary.** A ring chart shows how the month's income was split, with what's left over in the middle. It also shows totals for spent, saved and invested, and the share of income put away.
 - **Your year.** One bar per month, split into spent, saved, invested and left over. Tap a bar to jump to that month.
 - **Investment India in rupees.** Shows the rupee value using an exchange rate you set.
@@ -34,17 +33,17 @@ There is also a version that adds Instacart receipts automatically. It lives in 
 
 ## Hosting on GitHub Pages
 
-1. Create a public repository named `budget`.
+1. Create a public repository named `budget_V2`.
 2. Upload the files above to the main branch.
 3. Go to **Settings → Pages**, set the branch to `main` and the folder to `/ (root)`, then save.
-4. After a minute or two the app is live at `https://<username>.github.io/budget/`.
+4. After a minute or two the app is live at `https://<username>.github.io/budget_V2/`.
 
 To update the app, upload the changed files with the same names. GitHub replaces the old ones.
 
 ## Installing on a phone
 
 - **iPhone.** Open the link in Safari, tap Share, then **Add to Home Screen**.
-- **Android.** Open the link in Chrome, tap ⋮, then **Install app**. Pick Install rather than Create shortcut. The installed app opens full screen and shows up in the Share menu.
+- **Android.** Open the link in Chrome, tap ⋮, then **Install app**. Pick Install rather than Create shortcut. The installed app opens full screen like a normal app.
 
 Always open the app from the home screen icon. On iPhone, the home screen app keeps its own data, separate from Safari tabs.
 
